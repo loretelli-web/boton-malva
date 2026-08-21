@@ -213,12 +213,59 @@
     <div id="badge-response"></div>
     <div id="response-content"></div>
     <div class="action-row">
+      <button class="btn-main" id="btn-profundizar" onclick="iniciarProfundizar()" style="background:#5a3d57;display:none;">Quiero ir un poco más profundo ✨</button>
       <button class="btn-main" onclick="otroEjercicio()">Quiero otro ejercicio</button>
       <button class="btn-ghost" onclick="detenerMusica(); goTo('s-welcome')">Volver al inicio</button>
     </div>
     <div class="footer" style="margin-top:24px">
       <span class="footer-zf">· Zen Femenino · Método TEZ® ·</span>
       <span class="footer-legal">Este espacio no reemplaza atención profesional.</span>
+    </div>
+  </div>
+
+  <!-- PROFUNDIZAR: PREGUNTAS -->
+  <div class="screen" id="s-prof-preguntas">
+    <div class="header">
+      <div class="brand-main">Botón Malva</div>
+      <div class="header-divider"></div>
+    </div>
+    <p class="section-title" style="font-size:19px;">Vamos un poco más adentro</p>
+    <p class="section-sub" id="prof-preguntas-texto" style="text-align:left;margin-top:8px;">Tomate un momento con esto:</p>
+    <textarea id="prof-respuestas" placeholder="Escribí lo que aparezca, sin pensarlo demasiado..." style="width:100%;min-height:120px;padding:14px;border:1.5px solid #d9c8d7;border-radius:12px;font-family:'Poppins',sans-serif;font-size:14px;outline:none;resize:vertical;margin-top:12px;"></textarea>
+    <div class="action-row" style="margin-top:16px;">
+      <button class="btn-main" style="background:#5a3d57;" onclick="profundizarReflexion()">Continuar</button>
+    </div>
+  </div>
+
+  <!-- PROFUNDIZAR: REFLEXIÓN -->
+  <div class="screen" id="s-prof-reflexion">
+    <div class="header">
+      <div class="brand-main">Botón Malva</div>
+      <div class="header-divider"></div>
+    </div>
+    <div id="prof-reflexion-content"></div>
+    <div class="action-row" style="margin-top:16px;">
+      <button class="btn-main" style="background:#5a3d57;" onclick="profundizarAccion()">¿Y ahora?</button>
+    </div>
+  </div>
+
+  <!-- PROFUNDIZAR: ACCIÓN -->
+  <div class="screen" id="s-prof-accion">
+    <div class="header">
+      <div class="brand-main">Botón Malva</div>
+      <div class="header-divider"></div>
+    </div>
+    <div id="prof-accion-content"></div>
+    <div class="action-row" style="margin-top:16px;">
+      <button class="btn-main" onclick="detenerMusica(); goTo('s-welcome')">Cerrar con esto</button>
+    </div>
+  </div>
+
+  <!-- PROFUNDIZAR: LOADING -->
+  <div class="screen" id="s-prof-loading">
+    <div class="loading-wrap">
+      <div class="loading-dot"></div>
+      <p class="loading-text">Malva está leyendo lo que trajiste...</p>
     </div>
   </div>
 
@@ -230,9 +277,15 @@
     </div>
     <div class="paywall-card">
       <div class="paywall-icon">💜</div>
-      <p class="paywall-title">Tus primeros momentos<br>fueron gratuitos.</p>
-      <p class="paywall-sub">Botón Malva está diseñado para acompañarte cada vez que necesités reconectarte con vos misma. Acceso ilimitado por menos de lo que cuesta un café.</p>
-      <p class="paywall-price">USD 9,99<span style="font-size:14px;font-weight:300;color:#6c636e">/mes</span></p>
+      <p class="paywall-title">Por hoy, llegaste<br>a tus dos momentos.</p>
+      <p class="paywall-sub">Malva es gratis todos los días, con dos momentos diarios. Si querés más, Malva Premium te acompaña sin límite y más profundo:</p>
+      <div style="text-align:left;max-width:320px;margin:0 auto 18px;">
+        <p style="font-size:13px;color:#5a3d57;margin-bottom:8px;">✦ Momentos ilimitados, sin el tope diario</p>
+        <p style="font-size:13px;color:#5a3d57;margin-bottom:8px;">✦ Herramientas profundas para ordenar lo que te pasa</p>
+        <p style="font-size:13px;color:#5a3d57;margin-bottom:8px;">✦ Tu historial personal, para volver a tus momentos</p>
+        <p style="font-size:13px;color:#5a3d57;margin-bottom:0;">✦ Biblioteca de recursos y audios, sumándose</p>
+      </div>
+      <p class="paywall-price">USD 7,99<span style="font-size:14px;font-weight:300;color:#6c636e">/mes</span></p>
       <p class="paywall-trial">5 días de prueba gratuita · Cancelás cuando querés</p>
       <a class="btn-pay" href="https://www.mercadopago.com.ar/subscriptions/checkout?preapproval_plan_id=8ef1c2ac639f494886e804767e2ab35f" target="_blank">Suscribirme · 5 días gratis</a>
       <div style="margin-top:24px; padding-top:22px; border-top:1px solid #e0d4de;">
@@ -255,8 +308,33 @@
   let usuarioActual = { icon:'', label:'', contexto:'' };
   let chipsActivos = [];
   let ejercicioAnterior = '';
-  let usoCount = parseInt(localStorage.getItem('bm_usos') || '0');
   let esSuscriptor = localStorage.getItem('bm_suscriptor') === 'si';
+
+  // ===== LÍMITE DIARIO (freemium): 2 momentos por día para no suscriptoras =====
+  const LIMITE_DIARIO = 2;
+
+  function hoyStr() {
+    const d = new Date();
+    return d.getFullYear() + '-' + (d.getMonth()+1) + '-' + d.getDate();
+  }
+
+  function usosDeHoy() {
+    const data = localStorage.getItem('bm_usos_dia');
+    if (!data) return 0;
+    try {
+      const obj = JSON.parse(data);
+      if (obj.fecha === hoyStr()) return obj.count;
+      return 0; // otro día → se resetea
+    } catch(e) { return 0; }
+  }
+
+  function sumarUsoHoy() {
+    localStorage.setItem('bm_usos_dia', JSON.stringify({ fecha: hoyStr(), count: usosDeHoy() + 1 }));
+  }
+
+  function alcanzoLimite() {
+    return !esSuscriptor && usosDeHoy() >= LIMITE_DIARIO;
+  }
 
   function desbloquearConEmail() {
     const input = document.getElementById('email-input');
@@ -355,7 +433,7 @@
   }
 
   async function buscarEjercicio() {
-    if (!esSuscriptor && usoCount >= 3) { goTo('s-paywall'); return; }
+    if (alcanzoLimite()) { goTo('s-paywall'); return; }
     const texto = document.getElementById('feel-input').value.trim();
     if (!texto) return;
     goTo('s-loading');
@@ -374,8 +452,7 @@
       if (data.error) throw new Error(data.error);
 
       ejercicioAnterior = data.texto;
-      usoCount++;
-      localStorage.setItem('bm_usos', usoCount.toString());
+      sumarUsoHoy();
 
       const html = data.texto
         .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
@@ -393,6 +470,9 @@
           <div class="response-text">${html}</div>
         </div>`;
 
+      // El botón "Profundizar" solo para suscriptoras premium
+      document.getElementById('btn-profundizar').style.display = esSuscriptor ? 'block' : 'none';
+
       iniciarMusica();
       goTo('s-response');
     } catch(e) {
@@ -403,8 +483,95 @@
     }
   }
 
+  // ===== PROFUNDIZAR (premium): preguntar → escuchar → reflejar → proponer =====
+  let profSituacion = '';
+
+  async function iniciarProfundizar() {
+    profSituacion = document.getElementById('feel-input').value.trim() || ejercicioAnterior || '';
+    detenerMusica();
+    goTo('s-prof-loading');
+    try {
+      const res = await fetch('/api/ejercicio', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          perfil: `${usuarioActual.label} — ${usuarioActual.contexto}`,
+          situacion: profSituacion,
+          modo: 'profundizar_preguntas'
+        })
+      });
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+      const preguntas = data.texto.split('\n').filter(l => l.trim());
+      const htmlP = preguntas.map(p => `<p style="margin-bottom:10px;color:#5a3d57;font-weight:500;">${p}</p>`).join('');
+      document.getElementById('prof-preguntas-texto').innerHTML = htmlP;
+      document.getElementById('prof-respuestas').value = '';
+      goTo('s-prof-preguntas');
+    } catch(e) {
+      document.getElementById('prof-preguntas-texto').innerHTML = '<p>¿Qué es lo que más pesa ahora mismo? ¿Y qué necesitás, aunque sea difícil de nombrar?</p>';
+      goTo('s-prof-preguntas');
+    }
+  }
+
+  async function profundizarReflexion() {
+    const respuestas = document.getElementById('prof-respuestas').value.trim();
+    if (!respuestas) return;
+    goTo('s-prof-loading');
+    try {
+      const res = await fetch('/api/ejercicio', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          perfil: `${usuarioActual.label} — ${usuarioActual.contexto}`,
+          situacion: profSituacion,
+          respuestas: respuestas,
+          modo: 'profundizar_reflexion'
+        })
+      });
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+      profRespuestas = respuestas;
+      const html = data.texto.split('\n').filter(l=>l.trim()).map(l => `<p>${l}</p>`).join('');
+      document.getElementById('prof-reflexion-content').innerHTML =
+        `<div class="response-card"><div class="response-eyebrow">Lo que aparece</div><div class="response-text">${html}</div></div>`;
+      goTo('s-prof-reflexion');
+    } catch(e) {
+      document.getElementById('prof-reflexion-content').innerHTML =
+        `<div class="response-card"><div class="response-text"><p>Gracias por escribir eso. Lo que trajiste merece ser mirado con calma.</p></div></div>`;
+      goTo('s-prof-reflexion');
+    }
+  }
+
+  let profRespuestas = '';
+
+  async function profundizarAccion() {
+    goTo('s-prof-loading');
+    try {
+      const res = await fetch('/api/ejercicio', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          perfil: `${usuarioActual.label} — ${usuarioActual.contexto}`,
+          situacion: profSituacion,
+          respuestas: profRespuestas,
+          modo: 'profundizar_accion'
+        })
+      });
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+      const html = data.texto.split('\n').filter(l=>l.trim()).map(l => `<p>${l}</p>`).join('');
+      document.getElementById('prof-accion-content').innerHTML =
+        `<div class="response-card"><div class="response-eyebrow">Un pequeño paso</div><div class="response-text">${html}</div></div>`;
+      goTo('s-prof-accion');
+    } catch(e) {
+      document.getElementById('prof-accion-content').innerHTML =
+        `<div class="response-card"><div class="response-text"><p>Elegí una sola cosa, pequeña, que puedas hacer por vos en los próximos minutos. Con eso alcanza.</p></div></div>`;
+      goTo('s-prof-accion');
+    }
+  }
+
   function otroEjercicio() {
-    if (!esSuscriptor && usoCount >= 3) { goTo('s-paywall'); return; }
+    if (alcanzoLimite()) { goTo('s-paywall'); return; }
     document.getElementById('feel-input').value = '';
     chipsActivos = [];
     document.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
