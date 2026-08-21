@@ -223,6 +223,25 @@
     </div>
   </div>
 
+  <!-- REGISTRO -->
+  <div class="screen" id="s-registro">
+    <div class="header">
+      <div class="brand-main">Botón Malva</div>
+      <div class="header-divider"></div>
+    </div>
+    <p class="section-title" style="font-size:19px;">Seguí usando Malva 💜</p>
+    <p class="section-sub" style="text-align:left;margin-top:8px;">Malva sigue siendo tuyo: <strong>2 momentos gratis por día, siempre</strong>. Antes de seguir, dejanos unos datos para saber a quién estamos acompañando. Es una sola vez.</p>
+    <div style="max-width:340px;margin:18px auto 0;text-align:left;">
+      <input type="text" id="reg-nombre" placeholder="Nombre" style="width:100%;padding:13px;border:1.5px solid #d9c8d7;border-radius:10px;font-family:'Poppins',sans-serif;font-size:14px;outline:none;margin-bottom:10px;">
+      <input type="text" id="reg-apellido" placeholder="Apellido" style="width:100%;padding:13px;border:1.5px solid #d9c8d7;border-radius:10px;font-family:'Poppins',sans-serif;font-size:14px;outline:none;margin-bottom:10px;">
+      <input type="email" id="reg-email" placeholder="Email" style="width:100%;padding:13px;border:1.5px solid #d9c8d7;border-radius:10px;font-family:'Poppins',sans-serif;font-size:14px;outline:none;margin-bottom:10px;">
+      <input type="number" id="reg-edad" placeholder="Edad (opcional)" style="width:100%;padding:13px;border:1.5px solid #d9c8d7;border-radius:10px;font-family:'Poppins',sans-serif;font-size:14px;outline:none;margin-bottom:10px;">
+      <input type="tel" id="reg-telefono" placeholder="Teléfono / WhatsApp (opcional)" style="width:100%;padding:13px;border:1.5px solid #d9c8d7;border-radius:10px;font-family:'Poppins',sans-serif;font-size:14px;outline:none;margin-bottom:10px;">
+      <p id="reg-error" style="display:none;font-size:12px;color:#C0392B;margin:4px 0 10px;">Completá al menos tu nombre y un email válido.</p>
+      <button class="btn-main" style="background:#5a3d57;" onclick="enviarRegistro()" id="btn-reg">Continuar</button>
+    </div>
+  </div>
+
   <!-- PROFUNDIZAR: PREGUNTAS -->
   <div class="screen" id="s-prof-preguntas">
     <div class="header">
@@ -570,7 +589,58 @@
     }
   }
 
+  // ===== REGISTRO DE USUARIAS (una sola vez) =====
+  const REGISTRO_URL = 'https://script.google.com/macros/s/AKfycbxCZXDSgj8tpXNRGvy92ywjKdj7jfIdtMdSg-WXGjEzNc3k7b7J-g66K_bIRz2sWprBjw/exec';
+
+  function yaRegistrada() {
+    return localStorage.getItem('bm_registrada') === 'si';
+  }
+
+  function irAInputNuevo() {
+    // Tras registrarse/saltear, si ya usó sus momentos del día, va al paywall
+    if (alcanzoLimite()) { goTo('s-paywall'); return; }
+    document.getElementById('feel-input').value = '';
+    chipsActivos = [];
+    document.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
+    document.getElementById('btn-ejercicio').disabled = true;
+    detenerMusica();
+    goTo('s-input');
+  }
+
+  function enviarRegistro() {
+    const nombre = (document.getElementById('reg-nombre').value || '').trim();
+    const apellido = (document.getElementById('reg-apellido').value || '').trim();
+    const email = (document.getElementById('reg-email').value || '').trim();
+    const edad = (document.getElementById('reg-edad').value || '').trim();
+    const telefono = (document.getElementById('reg-telefono').value || '').trim();
+    const error = document.getElementById('reg-error');
+    const emailValido = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+    if (!nombre || !emailValido) { error.style.display = 'block'; return; }
+    error.style.display = 'none';
+    const btn = document.getElementById('btn-reg');
+    btn.textContent = 'Guardando...';
+    btn.disabled = true;
+    localStorage.setItem('bm_registrada', 'si');
+    localStorage.setItem('bm_email_registro', email);
+    fetch(REGISTRO_URL, {
+      method: 'POST',
+      mode: 'no-cors',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ nombre, apellido, edad, email, telefono })
+    }).catch(function(){});
+    setTimeout(function(){
+      btn.textContent = 'Continuar';
+      btn.disabled = false;
+      irAInputNuevo();
+    }, 600);
+  }
+
   function otroEjercicio() {
+    // Registro una sola vez, después del primer momento (antes de chequear límite)
+    if (!yaRegistrada()) {
+      goTo('s-registro');
+      return;
+    }
     if (alcanzoLimite()) { goTo('s-paywall'); return; }
     document.getElementById('feel-input').value = '';
     chipsActivos = [];
